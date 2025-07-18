@@ -42,7 +42,7 @@ class GoogleMapsEngine(BaseEngine, AbstractEngine):
 
         Creates `GoogleMapsEngine` instance
         '''
-        self._entries = []
+        super().__init__()  # Initialize the parent class
         self.zoom = zoom
         self.query = query
         self.location = location

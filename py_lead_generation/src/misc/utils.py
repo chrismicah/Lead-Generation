@@ -10,7 +10,7 @@ def get_coords_by_location(location: str) -> tuple[str]:
 
     Returns a tuple of the coordinates, two strings represented as float numbers - (latitude, longitude)
     '''
-    loc = geolocator.geocode(location)
+    loc = geolocator.geocode(location, timeout=10)
     coords = (loc.latitude, loc.longitude)
     coords = list(map(str, coords))
     return coords

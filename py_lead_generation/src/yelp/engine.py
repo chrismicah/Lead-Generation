@@ -27,8 +27,13 @@ class YelpEngine(BaseEngine, AbstractEngine):
 
     def __init__(self, query: str, location: str) -> None:
         '''
+        Initialize YelpEngine with search parameters
+        
+        Args:
+            query: What to search for (e.g., "Pizza")
+            location: Where to search (e.g., "New York")
         '''
-        self._entries = []
+        super().__init__()  # Initialize parent class
         self.query = query
         self.location = location
         self.url = self.BASE_URL.format(
@@ -37,54 +42,76 @@ class YelpEngine(BaseEngine, AbstractEngine):
 
     async def _get_search_results_urls(self) -> list[str]:
         '''
+        Scrape search result URLs from Yelp pages
         '''
         urls = []
         host = 'https://www.yelp.com'
-        while True:
-            await asyncio.sleep(3)
-            link_elements = await self.page.query_selector_all('.css-1hqkluu')
-            for link_element in link_elements:
-                url = await link_element.get_attribute('href')
-                url = host + url
-                urls.append(url)
+        try:
+            while True:
+                await asyncio.sleep(3)
+                link_elements = await self.page.query_selector_all('.css-1hqkluu')
+                for link_element in link_elements:
+                    try:
+                        url = await link_element.get_attribute('href')
+                        if url:
+                            url = host + url
+                            urls.append(url)
+                    except Exception as e:
+                        print(f"Error extracting URL: {str(e)}")
+                        continue
 
-            next_page_btn = await self.page.query_selector(
-                '.next-link.navigation-button__09f24__m9qRz.css-ahgoya'
-            )
-            if not next_page_btn:
-                break
+                next_page_btn = await self.page.query_selector(
+                    '.next-link.navigation-button__09f24__m9qRz.css-ahgoya'
+                )
+                if not next_page_btn:
+                    break
 
-            await next_page_btn.scroll_into_view_if_needed()
-            await next_page_btn.click()
+                try:
+                    await next_page_btn.scroll_into_view_if_needed()
+                    await next_page_btn.click()
+                except Exception as e:
+                    print(f"Error navigating to next page: {str(e)}")
+                    break
+
+        except Exception as e:
+            print(f"Error during URL extraction: {str(e)}")
 
         return urls
 
     def _parse_data_with_soup(self, html: str) -> list[str]:
         '''
-        `html: str` - html representation of the page to parse
-
-        Returns `list[str]` typed parsed data - `[title, addr, phone, tags]`
+        Parse business details from Yelp page HTML
+        
+        Args:
+            html: HTML content of the page
+            
+        Returns:
+            List containing [title, address, phone, tags]
         '''
-        soup = BeautifulSoup(html, 'html.parser')
-        data = []
+        try:
+            soup = BeautifulSoup(html, 'html.parser')
+            data = []
 
-        title_selector = '.css-1se8maq'
-        addr_selector = '.css-qyp8bo'
-        phone_selector = '.css-djo2w .css-1p9ibgf'
-        tags_selector = '.css-1xfc281 span.css-1fdy0l5'
+            title_selector = '.css-1se8maq'
+            addr_selector = '.css-qyp8bo'
+            phone_selector = '.css-djo2w .css-1p9ibgf'
+            tags_selector = '.css-1xfc281 span.css-1fdy0l5'
 
-        for selector in (title_selector, addr_selector, phone_selector):
-            element = soup.select_one(selector)
-            info = element.get_text() if element else '-'
-            data.append(info)
+            for selector in (title_selector, addr_selector, phone_selector):
+                element = soup.select_one(selector)
+                info = element.get_text() if element else '-'
+                data.append(info)
 
-        tags = ''
-        tag_elements = soup.select(tags_selector)
-        for tag_element in tag_elements:
-            el = tag_element.find('a')
-            tag = el.get_text() if el else '-'
-            tags += tag + ','
-        tags = tags[:-1]
-        data.append(tags)
+            tags = ''
+            tag_elements = soup.select(tags_selector)
+            for tag_element in tag_elements:
+                el = tag_element.find('a')
+                tag = el.get_text() if el else '-'
+                tags += tag + ','
+            tags = tags[:-1] if tags else '-'
+            data.append(tags)
 
-        return data
+            return data
+        except Exception as e:
+            print(f"Error parsing page data: {str(e)}")
+            return ['-', '-', '-', '-']  # Return empty data on error
